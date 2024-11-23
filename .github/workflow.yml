@@ -1,0 +1,36 @@
+  name: Build and Deploy with Cloud Build
+
+  on:
+    push:
+      branches:
+        - main
+
+  env:
+    PROJECT_ID: 'einfo2024'
+
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v3
+
+        - name: Set up Google Cloud CLI
+          uses: google-github-actions/setup-gcloud@v1
+          with:
+            version: 'latest'
+
+        - name: Authenticate with Service Account
+          env:
+            GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          run: |
+            echo $GCP_SA_KEY | base64 --decode > gcloud-sa-key.json
+            gcloud auth activate-service-account --key-file=gcloud-sa-key.json
+            gcloud config set project $PROJECT_ID
+
+        - name: Run Cloud Build
+          run: |
+            gcloud builds submit \
+              --substitutions=_COMMIT_SHA=$(echo ${{ github.sha }} | cut -c1-7) \
+              --config=cloudbuild.yaml
